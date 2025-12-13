@@ -21,6 +21,7 @@ import { ComponentProps, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { integrationSettingsPath } from "@shared/utils/routeHelpers";
 import { createLazyComponent as lazy } from "~/components/LazyLoad";
+import isCloudHosted from "~/utils/isCloudHosted";
 import { Hook, PluginManager } from "~/utils/PluginManager";
 import { settingsPath } from "~/utils/routeHelpers";
 import { useComputed } from "./useComputed";
@@ -32,6 +33,7 @@ import useStores from "./useStores";
 const ApiKeys = lazy(() => import("~/scenes/Settings/ApiKeys"));
 const Applications = lazy(() => import("~/scenes/Settings/Applications"));
 const APIAndApps = lazy(() => import("~/scenes/Settings/APIAndApps"));
+const Smtp = lazy(() => import("~/scenes/Settings/Smtp"));
 const Details = lazy(() => import("~/scenes/Settings/Details"));
 const Export = lazy(() => import("~/scenes/Settings/Export"));
 const Features = lazy(() => import("~/scenes/Settings/Features"));
@@ -227,6 +229,16 @@ const useSettingsConfig = () => {
         enabled: can.update,
         group: t("Integrations"),
         icon: PlusIcon,
+      },
+      // Instance (self-hosted only)
+      {
+        name: t("SMTP"),
+        path: settingsPath("smtp"),
+        component: Smtp.Component,
+        preload: Smtp.preload,
+        enabled: can.update && !isCloudHosted,
+        group: t("Instance"),
+        icon: EmailIcon,
       },
     ];
 

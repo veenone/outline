@@ -6,6 +6,7 @@ import env from "@server/env";
 import { InternalError } from "@server/errors";
 import Logger from "@server/logging/Logger";
 import { trace } from "@server/logging/tracing";
+import { InstallationSettings } from "@server/models";
 import { baseStyles } from "./templates/components/EmailLayout";
 
 const useTestEmailService = env.isDevelopment && !env.SMTP_USERNAME;
@@ -158,9 +159,18 @@ export class Mailer {
     try {
       Logger.info("email", `Sending email "${data.subject}" to ${data.to}`);
 
+      // Get reply-to from database or env
+      const settings = await InstallationSettings.get();
+      const replyTo =
+        data.replyTo ??
+        settings?.smtpReplyEmail ??
+        env.SMTP_REPLY_EMAIL ??
+        settings?.smtpFromEmail ??
+        env.SMTP_FROM_EMAIL;
+
       const info = await transporter.sendMail({
         from: data.from,
-        replyTo: data.replyTo ?? env.SMTP_REPLY_EMAIL ?? env.SMTP_FROM_EMAIL,
+        replyTo,
         to: data.to,
         messageId: data.messageId,
         references: data.references,
@@ -198,6 +208,133 @@ export class Mailer {
       throw err; // Re-throw for queue to re-try
     }
   };
+
+  /**
+   * Send a test email to verify SMTP configuration.
+   *
+   * @param to Email address to send test to.
+   * @returns Result object with success status and optional error message.
+   */
+  async sendTestEmail(
+    to: string
+  ): Promise<{ success: boolean; error?: string; previewUrl?: string }> {
+    try {
+      const options = await this.getOptionsFromDatabase();
+      if (!options) {
+        return {
+          success: false,
+          error: "SMTP is not configured. Please configure SMTP settings first.",
+        };
+      }
+
+      const testTransporter = nodemailer.createTransport(options);
+
+      // Verify connection
+      await testTransporter.verify();
+
+      // Get the from email from database or env
+      const settings = await InstallationSettings.get();
+      const fromEmail =
+        settings?.smtpFromEmail ?? env.SMTP_FROM_EMAIL ?? "test@example.com";
+
+      const info = await testTransporter.sendMail({
+        from: fromEmail,
+        to,
+        subject: "Outline SMTP Test Email",
+        text: "This is a test email from Outline to verify your SMTP configuration is working correctly.",
+        html: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>SMTP Configuration Test</h2>
+            <p>This is a test email from Outline to verify your SMTP configuration is working correctly.</p>
+            <p>If you received this email, your SMTP settings are configured properly.</p>
+            <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;" />
+            <p style="color: #666; font-size: 12px;">Sent from Outline</p>
+          </div>
+        `,
+      });
+
+      const previewUrl = useTestEmailService
+        ? nodemailer.getTestMessageUrl(info) || undefined
+        : undefined;
+
+      Logger.info("email", `Test email sent successfully to ${to}`);
+
+      return {
+        success: true,
+        previewUrl: previewUrl ? String(previewUrl) : undefined,
+      };
+    } catch (err) {
+      Logger.error(`Failed to send test email to ${to}`, err);
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Unknown error occurred",
+      };
+    }
+  }
+
+  /**
+   * Get SMTP options from database configuration, falling back to environment variables.
+   *
+   * @returns SMTP transport options or null if not configured.
+   */
+  private async getOptionsFromDatabase(): Promise<SMTPTransport.Options | null> {
+    // Try database configuration first
+    const settings = await InstallationSettings.get();
+
+    if (settings?.isSmtpConfigured) {
+      return this.buildOptionsFromSettings(settings);
+    }
+
+    // Fall back to environment variables
+    if (env.SMTP_HOST || env.SMTP_SERVICE) {
+      return this.getOptions();
+    }
+
+    return null;
+  }
+
+  /**
+   * Build SMTP transport options from InstallationSettings model.
+   *
+   * @param settings The InstallationSettings instance.
+   * @returns SMTP transport options.
+   */
+  private buildOptionsFromSettings(
+    settings: InstallationSettings
+  ): SMTPTransport.Options {
+    // Use service-based config if service is specified
+    if (settings.smtpService) {
+      return {
+        service: settings.smtpService,
+        auth: settings.smtpUsername
+          ? {
+              user: settings.smtpUsername,
+              pass: settings.smtpPassword ?? undefined,
+            }
+          : undefined,
+      };
+    }
+
+    return {
+      name: settings.smtpName ?? undefined,
+      host: settings.smtpHost ?? undefined,
+      port: settings.smtpPort ?? undefined,
+      secure: settings.smtpSecure ?? env.isProduction,
+      auth: settings.smtpUsername
+        ? {
+            user: settings.smtpUsername,
+            pass: settings.smtpPassword ?? undefined,
+          }
+        : undefined,
+      ignoreTLS: settings.smtpDisableStarttls ?? false,
+      tls:
+        settings.smtpSecure ?? env.isProduction
+          ? settings.smtpTlsCiphers
+            ? { ciphers: settings.smtpTlsCiphers }
+            : undefined
+          : { rejectUnauthorized: false },
+    };
+  }
 
   private getOptions(): SMTPTransport.Options {
     // nodemailer will use the service config to determine host/port

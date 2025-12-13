@@ -25,6 +25,7 @@ import groupMemberships from "./groupMemberships";
 import groups from "./groups";
 import imports from "./imports";
 import installation from "./installation";
+import installationSettings from "./installationSettings";
 import integrations from "./integrations";
 import apiErrorHandler from "./middlewares/apiErrorHandler";
 import apiResponse from "./middlewares/apiResponse";
@@ -113,6 +114,7 @@ router.use("/", imports.routes());
 
 if (!env.isCloudHosted) {
   router.use("/", installation.routes());
+  router.use("/", installationSettings.routes());
 }
 
 if (env.isDevelopment) {

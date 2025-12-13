@@ -11,6 +11,7 @@ import presentGroup from "./group";
 import presentGroupMembership from "./groupMembership";
 import presentGroupUser from "./groupUser";
 import presentImport from "./import";
+import presentInstallationSettings from "./installationSettings";
 import presentIntegration from "./integration";
 import presentMembership from "./membership";
 import presentOAuthClient, { presentPublishedOAuthClient } from "./oauthClient";
@@ -44,6 +45,7 @@ export {
   presentGroupUser,
   presentGroupMembership,
   presentImport,
+  presentInstallationSettings,
   presentIntegration,
   presentMembership,
   presentOAuthClient,

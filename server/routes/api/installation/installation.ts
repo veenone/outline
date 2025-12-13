@@ -6,7 +6,7 @@ import { ValidationError } from "@server/errors";
 import auth from "@server/middlewares/authentication";
 import { transaction } from "@server/middlewares/transaction";
 import validate from "@server/middlewares/validate";
-import { Team, User } from "@server/models";
+import { Team, User, InstallationSettings } from "@server/models";
 import { APIContext } from "@server/types";
 import { signIn } from "@server/utils/authentication";
 import { getVersion, getVersionInfo } from "@server/utils/getInstallationInfo";
@@ -41,6 +41,11 @@ router.post(
       teamId: team.id,
       role: UserRole.Admin,
     });
+
+    // Set the first user as the instance admin
+    const settings = await InstallationSettings.getOrCreate();
+    settings.instanceAdminEmail = userEmail;
+    await settings.save({ transaction });
 
     await signIn(ctx, "email", {
       user,

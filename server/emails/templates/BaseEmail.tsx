@@ -10,7 +10,7 @@ import mailer from "@server/emails/mailer";
 import env from "@server/env";
 import Logger from "@server/logging/Logger";
 import Metrics from "@server/logging/Metrics";
-import { Team } from "@server/models";
+import { Team, InstallationSettings } from "@server/models";
 import Notification from "@server/models/Notification";
 import HTMLHelper from "@server/models/helpers/HTMLHelper";
 import { ProsemirrorHelper } from "@server/models/helpers/ProsemirrorHelper";
@@ -50,9 +50,10 @@ export default abstract class BaseEmail<
    * @param options Options to pass to the Bull queue
    * @returns A promise that resolves once the email is placed on the task queue
    */
-  public schedule(options?: Bull.JobOptions) {
-    // No-op to schedule emails if SMTP is not configured
-    if (!env.SMTP_FROM_EMAIL) {
+  public async schedule(options?: Bull.JobOptions) {
+    // Check if email can be sent (either env or database config)
+    const fromEmail = await this.getFromEmail();
+    if (!fromEmail) {
       Logger.info(
         "email",
         `Email ${this.constructor.name} not sent due to missing SMTP_FROM_EMAIL configuration`
@@ -158,7 +159,7 @@ export default abstract class BaseEmail<
       await mailer.sendMail({
         to: this.props.to,
         replyTo: this.replyTo?.(data),
-        from: this.from(data),
+        from: await this.from(data),
         subject,
         messageId,
         references,
@@ -193,13 +194,27 @@ export default abstract class BaseEmail<
     }
   }
 
-  private from(props: S & T): EmailAddress {
-    invariant(
-      env.SMTP_FROM_EMAIL,
-      "SMTP_FROM_EMAIL is required to send emails"
-    );
+  /**
+   * Get the from email address from database config or environment variable.
+   *
+   * @returns The from email address or null if not configured.
+   */
+  private async getFromEmail(): Promise<string | null> {
+    // Check database config first
+    const settings = await InstallationSettings.get();
+    if (settings?.smtpFromEmail) {
+      return settings.smtpFromEmail;
+    }
 
-    const parsedFrom = addressparser(env.SMTP_FROM_EMAIL)[0];
+    // Fall back to environment variable
+    return env.SMTP_FROM_EMAIL ?? null;
+  }
+
+  private async from(props: S & T): Promise<EmailAddress> {
+    const fromEmail = await this.getFromEmail();
+    invariant(fromEmail, "SMTP_FROM_EMAIL is required to send emails");
+
+    const parsedFrom = addressparser(fromEmail)[0];
     const domain = parsedFrom.address.split("@")[1];
     const customFromName = this.fromName?.(props);
 

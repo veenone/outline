@@ -10,6 +10,7 @@ import "./comment";
 import "./document";
 import "./fileOperation";
 import "./import";
+import "./installationSettings";
 import "./integration";
 import "./notification";
 import "./oauthClient";

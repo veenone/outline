@@ -432,6 +432,17 @@ export class Environment {
   );
 
   /**
+   * The email address of the instance administrator. This user has access to
+   * instance-level settings like SMTP configuration. If not set, the first user
+   * created during installation will be the instance admin.
+   */
+  @IsEmail({ allow_display_name: true, allow_ip_domain: true })
+  @IsOptional()
+  public INSTANCE_ADMIN_EMAIL = this.toOptionalString(
+    environment.INSTANCE_ADMIN_EMAIL
+  );
+
+  /**
    * Dropbox app key for embedding Dropbox files
    */
   @Public
