@@ -33,6 +33,14 @@ function EditableTitle(
   const [originalValue, setOriginalValue] = React.useState(title);
   const [value, setValue] = React.useState(title);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const isMountedRef = React.useRef(true);
+
+  React.useEffect(
+    () => () => {
+      isMountedRef.current = false;
+    },
+    []
+  );
 
   React.useImperativeHandle(ref, () => ({
     setIsEditing,
@@ -102,16 +110,21 @@ function EditableTitle(
       setIsSubmitting(true);
       try {
         await onSubmit(trimmedValue);
-        setOriginalValue(trimmedValue);
-        setIsEditing(false);
+        if (isMountedRef.current) {
+          setOriginalValue(trimmedValue);
+          setIsEditing(false);
+        }
       } catch (error) {
-        setValue(value);
-        setIsEditing(true);
-
+        if (isMountedRef.current) {
+          setValue(value);
+          setIsEditing(true);
+        }
         toast.error(error.message);
         throw error;
       } finally {
-        setIsSubmitting(false);
+        if (isMountedRef.current) {
+          setIsSubmitting(false);
+        }
       }
     },
     [originalValue, value, onCancel, onSubmit, isSubmitting]

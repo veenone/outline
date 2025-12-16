@@ -126,7 +126,7 @@ function SidebarLink(
         onClick(ev);
       }
     },
-    [onClick, disabled, expanded]
+    [onClick, disabled]
   );
 
   const handleDisclosureClick = React.useCallback(
@@ -138,7 +138,7 @@ function SidebarLink(
       ev.stopPropagation();
       onDisclosureClick?.(ev);
     },
-    [onDisclosureClick]
+    [onDisclosureClick, hasDisclosure]
   );
 
   const DisclosureComponent = icon ? HiddenDisclosure : Disclosure;
@@ -152,7 +152,6 @@ function SidebarLink(
         style={style}
         activeStyle={isActiveDrop ? activeDropStyle : activeStyle}
         onClick={handleClick}
-        onActiveClick={handleDisclosureClick}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         onDragEnter={handleMouseEnter}
@@ -163,6 +162,9 @@ function SidebarLink(
         href={href}
         className={className}
         ref={ref}
+        // Only spread onActiveClick when using NavLink (to is defined)
+        // to avoid passing it to DOM elements which causes a warning
+        {...(to && { onActiveClick: handleDisclosureClick })}
         {...rest}
       >
         <Content>
