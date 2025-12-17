@@ -64,6 +64,38 @@ class LightboxMermaidImage extends LightboxImage {
   }
 }
 
+class LightboxPlantUMLImage extends LightboxImage {
+  constructor(view: EditorView, pos: number) {
+    super();
+    this.element = view.nodeDOM(pos) as HTMLDivElement;
+    this.pos = pos;
+    this.src = this.svgToSrc(this.extractSvg());
+    this.alt = "";
+  }
+
+  private svgToSrc(svg: string): string {
+    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  }
+
+  private extractSvg(): string {
+    const plantumlWrapper = this.element.nextElementSibling;
+    if (!plantumlWrapper) {
+      return "";
+    }
+    const svg = plantumlWrapper.firstElementChild;
+    if (!svg || !(svg instanceof SVGElement)) {
+      return "";
+    }
+
+    const serializer = new XMLSerializer();
+    return serializer.serializeToString(svg);
+  }
+
+  getElement() {
+    return this.element.nextElementSibling?.firstElementChild;
+  }
+}
+
 export class LightboxImageFactory {
   static createLightboxImage(view: EditorView, pos: number): LightboxImage {
     const node = view.state.doc.nodeAt(pos)!;
@@ -75,6 +107,10 @@ export class LightboxImageFactory {
       return new LightboxMermaidImage(view, pos);
     }
 
+    if (isPlantUML(node)) {
+      return new LightboxPlantUMLImage(view, pos);
+    }
+
     throw new Error("Unsupported node type for LightboxImage");
   }
 }
@@ -82,5 +118,8 @@ export class LightboxImageFactory {
 const isImage = (node: Node) => node.type.name === "image";
 const isMermaid = (node: Node) =>
   isCode(node) && node.attrs.language === "mermaidjs";
+const isPlantUML = (node: Node) =>
+  isCode(node) && node.attrs.language === "plantuml";
 
-export const isLightboxNode = (node: Node) => isImage(node) || isMermaid(node);
+export const isLightboxNode = (node: Node) =>
+  isImage(node) || isMermaid(node) || isPlantUML(node);

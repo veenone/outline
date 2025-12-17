@@ -758,6 +758,23 @@ export class Environment {
   public APP_NAME = "Outline";
 
   /**
+   * PlantUML server URL for rendering PlantUML diagrams.
+   * For self-hosted deployments, you can run your own PlantUML server
+   * (e.g., using Docker: plantuml/plantuml-server) and set this URL.
+   * If not set, PlantUML diagrams will show a configuration message.
+   */
+  @Public
+  @IsOptional()
+  @IsUrl({
+    protocols: ["http", "https"],
+    require_protocol: true,
+    require_tld: false,
+  })
+  public PLANTUML_SERVER_URL = this.toOptionalString(
+    environment.PLANTUML_SERVER_URL
+  );
+
+  /**
    * Gravity constant for time decay in popularity scoring. Higher values cause
    * faster decay of older content. Default is 0.7.
    */
