@@ -45,7 +45,7 @@ function Security() {
     request,
   } = useRequest(authenticationProviders.fetchPage);
 
-  const { request: fetchGroups } = useRequest(groups.fetchPage);
+  const { request: fetchGroups } = useRequest(() => groups.fetchPage({}));
 
   const userRoleOptions: Option[] = React.useMemo(
     () =>
@@ -94,12 +94,9 @@ function Security() {
     [groups.orderedData, t]
   );
 
-  // Get OIDC provider if available
+  // Get OIDC provider if available (connected or not)
   const oidcProvider = React.useMemo(
-    () =>
-      authenticationProviders.orderedData.find(
-        (p) => p.name === "oidc" && p.isConnected
-      ),
+    () => authenticationProviders.orderedData.find((p) => p.name === "oidc"),
     [authenticationProviders.orderedData]
   );
 
@@ -319,25 +316,34 @@ function Security() {
               provider.
             </Trans>
           </Text>
-          <SettingRow
-            label={t("Default group for new users")}
-            name="syncDefaultGroup"
-            description={t(
-              "Automatically add newly synced users to this group. Only applies to users created during sync."
-            )}
-            border={false}
-          >
-            <InputSelect
-              value={oidcProvider.settings?.syncDefaultGroupId ?? ""}
-              options={groupOptions}
-              onChange={(value) =>
-                handleSyncDefaultGroupChange(value, oidcProvider)
-              }
-              label={t("Default group")}
-              hideLabel
-              short
-            />
-          </SettingRow>
+          {oidcProvider.isConnected ? (
+            <SettingRow
+              label={t("Default group for new users")}
+              name="syncDefaultGroup"
+              description={t(
+                "Automatically add newly synced users to this group. Only applies to users created during sync."
+              )}
+              border={false}
+            >
+              <InputSelect
+                value={oidcProvider.settings?.syncDefaultGroupId ?? ""}
+                options={groupOptions}
+                onChange={(value) =>
+                  handleSyncDefaultGroupChange(value, oidcProvider)
+                }
+                label={t("Default group")}
+                hideLabel
+                short
+              />
+            </SettingRow>
+          ) : (
+            <Text as="p" type="secondary">
+              <Trans>
+                User sync settings will be available after a user has signed in
+                with {{ providerName: oidcProvider.displayName }}.
+              </Trans>
+            </Text>
+          )}
         </>
       )}
 

@@ -1,4 +1,4 @@
-import { Op, InferCreationAttributes } from "sequelize";
+import { Op } from "sequelize";
 import { GroupPermission, UserRole } from "@shared/types";
 import Logger from "@server/logging/Logger";
 import {
@@ -90,7 +90,7 @@ export default async function userSyncer(
     errors: [],
   };
 
-  Logger.info("sync", `Starting user sync for team ${teamId}`, {
+  Logger.info("commands", `Starting user sync for team ${teamId}`, {
     teamId,
     authenticationProviderId,
     providerUserCount: users.length,
@@ -98,7 +98,7 @@ export default async function userSyncer(
 
   // Safety check: Don't suspend all users if provider returns empty list
   if (users.length === 0) {
-    Logger.warn("sync", "Provider returned empty user list, skipping sync", {
+    Logger.warn("Provider returned empty user list, skipping sync", {
       teamId,
     });
     result.errors.push(
@@ -136,7 +136,6 @@ export default async function userSyncer(
     });
     if (!defaultGroup) {
       Logger.warn(
-        "sync",
         `Default group with ID "${defaultGroupId}" not found, users will not be auto-assigned`,
         { teamId }
       );
@@ -150,7 +149,6 @@ export default async function userSyncer(
     });
     if (!defaultGroup) {
       Logger.warn(
-        "sync",
         `Default group "${defaultGroupName}" not found, users will not be auto-assigned`,
         { teamId }
       );
@@ -159,7 +157,7 @@ export default async function userSyncer(
 
   if (defaultGroup) {
     Logger.info(
-      "sync",
+      "commands",
       `Will assign new users to group "${defaultGroup.name}"`,
       {
         teamId,
@@ -219,7 +217,7 @@ export default async function userSyncer(
         if (user.suspendedAt && !updated) {
           await user.update({ suspendedAt: null, suspendedById: null });
           result.reactivated++;
-          Logger.info("sync", `Reactivated user ${user.id}`, {
+          Logger.info("commands", `Reactivated user ${user.id}`, {
             email: user.email,
           });
         } else if (user.suspendedAt) {
@@ -244,9 +242,13 @@ export default async function userSyncer(
             // Note: suspendedById is null since this is a system action
           });
           result.suspended++;
-          Logger.info("sync", `Suspended user ${user.id} (not in provider)`, {
-            email: user.email,
-          });
+          Logger.info(
+            "commands",
+            `Suspended user ${user.id} (not in provider)`,
+            {
+              email: user.email,
+            }
+          );
         } catch (err) {
           result.errors.push(
             `Failed to suspend user ${user.email}: ${err.message}`
@@ -319,7 +321,7 @@ export default async function userSyncer(
         });
 
         Logger.info(
-          "sync",
+          "commands",
           `Linked existing user ${existingUser.id} to provider`,
           {
             email: existingUser.email,
@@ -338,22 +340,23 @@ export default async function userSyncer(
               avatarUrl: providerUser.avatarUrl || null,
               // User hasn't logged in yet
               lastActiveAt: null,
-              authentications: [
-                {
-                  providerId: providerUser.providerId,
-                  authenticationProviderId,
-                  scopes: [],
-                },
-              ],
-            } as Partial<InferCreationAttributes<User>>,
+            },
+            { transaction }
+          );
+
+          // Create authentication record
+          await UserAuthentication.create(
             {
-              include: ["authentications"],
-              transaction,
-            }
+              providerId: providerUser.providerId,
+              authenticationProviderId,
+              userId: user.id,
+              scopes: [],
+            },
+            { transaction }
           );
 
           result.created++;
-          Logger.info("sync", `Created new user ${user.id}`, {
+          Logger.info("commands", `Created new user ${user.id}`, {
             email: user.email,
             providerId: providerUser.providerId,
           });
@@ -371,7 +374,7 @@ export default async function userSyncer(
             );
             result.addedToGroup++;
             Logger.info(
-              "sync",
+              "commands",
               `Added user ${user.id} to group ${defaultGroup.name}`,
               {
                 email: user.email,
@@ -392,7 +395,7 @@ export default async function userSyncer(
     }
   }
 
-  Logger.info("sync", `User sync completed for team ${teamId}`, {
+  Logger.info("commands", `User sync completed for team ${teamId}`, {
     ...result,
     errorCount: result.errors.length,
   });
@@ -446,7 +449,7 @@ async function updateUserIfNeeded(
   if (Object.keys(updates).length > 0) {
     await user.update(updates, { transaction });
     result.updated++;
-    Logger.debug("sync", `Updated user ${user.id}`, { updates });
+    Logger.debug("commands", `Updated user ${user.id}`, { updates });
     return true;
   }
 

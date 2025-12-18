@@ -106,7 +106,7 @@ export default class KeycloakAdminClient {
     }
 
     Logger.debug(
-      "keycloak",
+      "plugins",
       "Obtaining admin access token via client credentials"
     );
 
@@ -133,7 +133,7 @@ export default class KeycloakAdminClient {
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => "Unknown error");
-      Logger.error("Keycloak token request failed", {
+      Logger.warn("Keycloak token request failed", {
         status: response.status,
         error: errorText,
       });
@@ -146,32 +146,28 @@ export default class KeycloakAdminClient {
     this.accessToken = data.access_token;
     this.tokenExpiresAt = new Date(Date.now() + data.expires_in * 1000);
 
-    Logger.debug("keycloak", "Successfully obtained admin access token");
+    Logger.debug("plugins", "Successfully obtained admin access token");
     return this.accessToken;
   }
 
   /**
    * Makes an authenticated request to the Keycloak Admin API.
    */
-  private async adminRequest<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<T> {
+  private async adminRequest<T>(endpoint: string): Promise<T> {
     const token = await this.getAdminToken();
 
     const response = await fetch(endpoint, {
-      ...options,
+      method: "GET",
       allowPrivateIPAddress: true,
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
-        ...options.headers,
       },
     });
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => "Unknown error");
-      Logger.error("Keycloak Admin API request failed", {
+      Logger.warn("Keycloak Admin API request failed", {
         endpoint,
         status: response.status,
         error: errorText,
@@ -217,7 +213,7 @@ export default class KeycloakAdminClient {
     }
 
     const endpoint = `${this.usersEndpoint}?${params.toString()}`;
-    Logger.debug("keycloak", `Fetching users: ${endpoint}`);
+    Logger.debug("plugins", `Fetching users from Keycloak`, { endpoint });
 
     return this.adminRequest<KeycloakUser[]>(endpoint);
   }
@@ -236,7 +232,7 @@ export default class KeycloakAdminClient {
     const allUsers: KeycloakUser[] = [];
     let first = 0;
 
-    Logger.info("keycloak", "Fetching all users from Keycloak");
+    Logger.info("plugins", "Fetching all users from Keycloak");
 
     // eslint-disable-next-line no-constant-condition
     while (true) {
@@ -253,14 +249,13 @@ export default class KeycloakAdminClient {
       // Safety limit to prevent infinite loops
       if (first > 100000) {
         Logger.warn(
-          "keycloak",
-          "Reached safety limit of 100,000 users during sync"
+          "Reached safety limit of 100,000 users during Keycloak sync"
         );
         break;
       }
     }
 
-    Logger.info("keycloak", `Fetched ${allUsers.length} users from Keycloak`);
+    Logger.info("plugins", `Fetched ${allUsers.length} users from Keycloak`);
     return allUsers;
   }
 

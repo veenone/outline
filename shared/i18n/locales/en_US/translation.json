@@ -1210,6 +1210,7 @@
   "Default group for new users": "Default group for new users",
   "Automatically add newly synced users to this group. Only applies to users created during sync.": "Automatically add newly synced users to this group. Only applies to users created during sync.",
   "Default group": "Default group",
+  "User sync settings will be available after a user has signed in with {{providerName}}.": "User sync settings will be available after a user has signed in with {{providerName}}.",
   "Access": "Access",
   "Allow users to send invites": "Allow users to send invites",
   "Allow editors to invite other people to the workspace": "Allow editors to invite other people to the workspace",

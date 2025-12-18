@@ -28,7 +28,6 @@ export default class SyncOIDCUsersTask extends CronTask {
     // Check if required config is present
     if (!env.OIDC_SYNC_ADMIN_URL || !env.OIDC_SYNC_REALM) {
       Logger.warn(
-        "task",
         "OIDC sync enabled but OIDC_SYNC_ADMIN_URL or OIDC_SYNC_REALM not configured"
       );
       return;
@@ -67,10 +66,7 @@ export default class SyncOIDCUsersTask extends CronTask {
     // Test connection before proceeding
     const connected = await keycloakClient.testConnection();
     if (!connected) {
-      Logger.error(
-        "task",
-        "Failed to connect to Keycloak Admin API, skipping sync"
-      );
+      Logger.warn("Failed to connect to Keycloak Admin API, skipping sync");
       return;
     }
 
@@ -85,7 +81,6 @@ export default class SyncOIDCUsersTask extends CronTask {
 
     if (keycloakUsers.length === 0) {
       Logger.warn(
-        "task",
         "Keycloak returned no users, skipping sync to prevent mass suspension"
       );
       return;
@@ -132,7 +127,6 @@ export default class SyncOIDCUsersTask extends CronTask {
 
         if (result.errors.length > 0) {
           Logger.warn(
-            "task",
             `Sync errors for team ${authProvider.teamId}`,
             { errors: result.errors.slice(0, 10) } // Log first 10 errors
           );
