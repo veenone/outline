@@ -1,4 +1,10 @@
-import { IsBoolean, IsOptional, IsUrl, MaxLength } from "class-validator";
+import {
+  IsBoolean,
+  IsOptional,
+  IsUrl,
+  MaxLength,
+  IsString,
+} from "class-validator";
 import { Environment } from "@server/env";
 import { Public } from "@server/utils/decorators/Public";
 import environment from "@server/utils/environment";
@@ -105,6 +111,62 @@ class OIDCPluginEnvironment extends Environment {
     allow_underscores: true,
   })
   public OIDC_LOGOUT_URI = this.toOptionalString(environment.OIDC_LOGOUT_URI);
+
+  /**
+   * Enable automatic user synchronization from the OIDC provider.
+   * When enabled, users will be pre-created in Outline before they log in,
+   * and users removed from the OIDC provider will be suspended.
+   */
+  @IsOptional()
+  @IsBoolean()
+  public OIDC_SYNC_ENABLED = this.toOptionalBoolean(
+    environment.OIDC_SYNC_ENABLED
+  );
+
+  /**
+   * The base URL of the Keycloak server for Admin API access.
+   * Example: https://keycloak.example.com
+   */
+  @IsOptional()
+  @CannotUseWithout("OIDC_SYNC_ENABLED")
+  @IsUrl({
+    require_tld: false,
+    allow_underscores: true,
+  })
+  public OIDC_SYNC_ADMIN_URL = this.toOptionalString(
+    environment.OIDC_SYNC_ADMIN_URL
+  );
+
+  /**
+   * The Keycloak realm name to sync users from.
+   */
+  @IsOptional()
+  @CannotUseWithout("OIDC_SYNC_ENABLED")
+  @IsString()
+  @MaxLength(255)
+  public OIDC_SYNC_REALM = this.toOptionalString(environment.OIDC_SYNC_REALM);
+
+  /**
+   * Optional: Client ID for Keycloak Admin API access.
+   * If not provided, OIDC_CLIENT_ID will be used.
+   * The client must have service account enabled with appropriate realm roles.
+   */
+  @IsOptional()
+  @IsString()
+  public OIDC_SYNC_CLIENT_ID = this.toOptionalString(
+    environment.OIDC_SYNC_CLIENT_ID
+  );
+
+  /**
+   * Optional: Client secret for Keycloak Admin API access.
+   * If not provided, OIDC_CLIENT_SECRET will be used.
+   */
+  @IsOptional()
+  @CannotUseWithout("OIDC_SYNC_CLIENT_ID")
+  @IsString()
+  public OIDC_SYNC_CLIENT_SECRET = this.toOptionalString(
+    environment.OIDC_SYNC_CLIENT_SECRET
+  );
 }
 
 export default new OIDCPluginEnvironment();

@@ -3,6 +3,7 @@ import { PluginManager, Hook } from "@server/utils/PluginManager";
 import config from "../plugin.json";
 import router from "./auth/oidc";
 import env from "./env";
+import SyncOIDCUsersTask from "./tasks/SyncOIDCUsersTask";
 
 // Check if OIDC is enabled with either manual configuration or issuer URL
 const hasManualConfig = !!(
@@ -30,4 +31,13 @@ if (enabled) {
     name: env.OIDC_DISPLAY_NAME || config.name,
   });
   Logger.info("plugins", "OIDC plugin registered");
+
+  // Register user sync task if sync is enabled
+  if (env.OIDC_SYNC_ENABLED) {
+    PluginManager.add({
+      type: Hook.Task,
+      value: SyncOIDCUsersTask,
+    });
+    Logger.info("plugins", "OIDC user sync task registered");
+  }
 }
