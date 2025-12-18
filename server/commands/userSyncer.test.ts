@@ -1,8 +1,13 @@
 import { faker } from "@faker-js/faker";
 import { randomUUID } from "crypto";
 import { createContext } from "@server/context";
-import { User, UserAuthentication } from "@server/models";
-import { buildUser, buildTeam, buildInvite } from "@server/test/factories";
+import { User, UserAuthentication, GroupUser } from "@server/models";
+import {
+  buildUser,
+  buildTeam,
+  buildInvite,
+  buildGroup,
+} from "@server/test/factories";
 import userSyncer, { SyncUser } from "./userSyncer";
 
 describe("userSyncer", () => {
@@ -316,5 +321,106 @@ describe("userSyncer", () => {
     expect(result.errors.length).toBe(1);
     expect(result.errors[0]).toContain("Authentication provider");
     expect(result.errors[0]).toContain("not found");
+  });
+
+  it("should add newly created users to default group", async () => {
+    const team = await buildTeam();
+    const authProviders = await team.$get("authenticationProviders");
+    const authProvider = authProviders[0];
+
+    // Create a group for the team
+    const group = await buildGroup({
+      teamId: team.id,
+      name: "New Users",
+    });
+
+    const syncUsers: SyncUser[] = [
+      {
+        providerId: randomUUID(),
+        email: "newuser@example.com",
+        name: "New User",
+      },
+    ];
+
+    const result = await userSyncer(ctx, {
+      teamId: team.id,
+      authenticationProviderId: authProvider.id,
+      users: syncUsers,
+      defaultGroupName: "New Users",
+    });
+
+    expect(result.created).toBe(1);
+    expect(result.addedToGroup).toBe(1);
+
+    // Verify user was added to the group
+    const user = await User.findOne({
+      where: { email: "newuser@example.com", teamId: team.id },
+    });
+    expect(user).toBeTruthy();
+
+    const groupUser = await GroupUser.findOne({
+      where: { userId: user!.id, groupId: group.id },
+    });
+    expect(groupUser).toBeTruthy();
+  });
+
+  it("should not add existing users to default group", async () => {
+    const user = await buildUser();
+    const authentications = await user.$get("authentications");
+    const existingAuth = authentications[0];
+
+    // Create a group for the team
+    const group = await buildGroup({
+      teamId: user.teamId,
+      name: "New Users",
+    });
+
+    const syncUsers: SyncUser[] = [
+      {
+        providerId: existingAuth.providerId,
+        email: user.email!,
+        name: user.name,
+      },
+    ];
+
+    const result = await userSyncer(ctx, {
+      teamId: user.teamId,
+      authenticationProviderId: existingAuth.authenticationProviderId,
+      users: syncUsers,
+      defaultGroupName: "New Users",
+    });
+
+    expect(result.unchanged).toBe(1);
+    expect(result.addedToGroup).toBe(0);
+
+    // Verify user was NOT added to the group
+    const groupUser = await GroupUser.findOne({
+      where: { userId: user.id, groupId: group.id },
+    });
+    expect(groupUser).toBeNull();
+  });
+
+  it("should skip group assignment if group does not exist", async () => {
+    const team = await buildTeam();
+    const authProviders = await team.$get("authenticationProviders");
+    const authProvider = authProviders[0];
+
+    const syncUsers: SyncUser[] = [
+      {
+        providerId: randomUUID(),
+        email: "newuser@example.com",
+        name: "New User",
+      },
+    ];
+
+    const result = await userSyncer(ctx, {
+      teamId: team.id,
+      authenticationProviderId: authProvider.id,
+      users: syncUsers,
+      defaultGroupName: "Non-Existent Group",
+    });
+
+    expect(result.created).toBe(1);
+    expect(result.addedToGroup).toBe(0);
   });
 });

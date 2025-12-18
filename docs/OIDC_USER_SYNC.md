@@ -73,9 +73,15 @@ OIDC_SYNC_REALM=myrealm
 # If using a separate admin client (Option 2 above)
 OIDC_SYNC_CLIENT_ID=outline-sync
 OIDC_SYNC_CLIENT_SECRET=your-admin-client-secret
+
+# Auto-assign newly synced users to a specific group
+# The group must already exist in Outline
+OIDC_SYNC_DEFAULT_GROUP_NAME=New Users
 ```
 
 If `OIDC_SYNC_CLIENT_ID` is not set, Outline will use the main `OIDC_CLIENT_ID` and `OIDC_CLIENT_SECRET` for admin API access.
+
+If `OIDC_SYNC_DEFAULT_GROUP_NAME` is set, newly created users will automatically be added to the specified group. This only applies to users that do not already exist in Outline. The group must be created beforehand in Outline.
 
 ## Complete Example
 
@@ -128,6 +134,7 @@ Users created through sync:
 - Are assigned the team's default user role (Member, Viewer, etc.)
 - Have no password (they must authenticate via OIDC)
 - Appear as "invited" until they first log in
+- Are automatically added to the default group if `OIDC_SYNC_DEFAULT_GROUP_NAME` is configured
 
 ## Troubleshooting
 

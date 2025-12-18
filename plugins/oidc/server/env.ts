@@ -167,6 +167,18 @@ class OIDCPluginEnvironment extends Environment {
   public OIDC_SYNC_CLIENT_SECRET = this.toOptionalString(
     environment.OIDC_SYNC_CLIENT_SECRET
   );
+
+  /**
+   * Optional: Name of a group to automatically assign newly synced users to.
+   * Only applies to users created during sync (not existing users).
+   * The group must already exist in the team.
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  public OIDC_SYNC_DEFAULT_GROUP_NAME = this.toOptionalString(
+    environment.OIDC_SYNC_DEFAULT_GROUP_NAME
+  );
 }
 
 export default new OIDCPluginEnvironment();

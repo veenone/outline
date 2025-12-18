@@ -1,11 +1,13 @@
 import { Op, InferCreationAttributes } from "sequelize";
-import { UserRole } from "@shared/types";
+import { GroupPermission, UserRole } from "@shared/types";
 import Logger from "@server/logging/Logger";
 import {
   Team,
   User,
   UserAuthentication,
   AuthenticationProvider,
+  Group,
+  GroupUser,
 } from "@server/models";
 import { sequelize } from "@server/storage/database";
 import { APIContext } from "@server/types";
@@ -38,6 +40,8 @@ export interface UserSyncerResult {
   unchanged: number;
   /** Number of users reactivated (were suspended, now in provider) */
   reactivated: number;
+  /** Number of users added to default group */
+  addedToGroup: number;
   /** Any errors encountered during sync */
   errors: string[];
 }
@@ -49,6 +53,8 @@ interface Props {
   authenticationProviderId: string;
   /** List of users from the external provider */
   users: SyncUser[];
+  /** Optional: Name of a group to assign newly created users to */
+  defaultGroupName?: string;
 }
 
 /**
@@ -64,7 +70,7 @@ interface Props {
  */
 export default async function userSyncer(
   ctx: APIContext,
-  { teamId, authenticationProviderId, users }: Props
+  { teamId, authenticationProviderId, users, defaultGroupName }: Props
 ): Promise<UserSyncerResult> {
   const result: UserSyncerResult = {
     created: 0,
@@ -72,6 +78,7 @@ export default async function userSyncer(
     suspended: 0,
     unchanged: 0,
     reactivated: 0,
+    addedToGroup: 0,
     errors: [],
   };
 
@@ -108,6 +115,33 @@ export default async function userSyncer(
       `Authentication provider ${authenticationProviderId} not found`
     );
     return result;
+  }
+
+  // Look up default group if specified
+  let defaultGroup: Group | null = null;
+  if (defaultGroupName) {
+    defaultGroup = await Group.findOne({
+      where: {
+        teamId,
+        name: defaultGroupName,
+      },
+    });
+    if (!defaultGroup) {
+      Logger.warn(
+        "sync",
+        `Default group "${defaultGroupName}" not found, users will not be auto-assigned`,
+        { teamId }
+      );
+    } else {
+      Logger.info(
+        "sync",
+        `Will assign new users to group "${defaultGroupName}"`,
+        {
+          teamId,
+          groupId: defaultGroup.id,
+        }
+      );
+    }
   }
 
   // Build a map of provider users by providerId for quick lookup
@@ -299,6 +333,28 @@ export default async function userSyncer(
             email: user.email,
             providerId: providerUser.providerId,
           });
+
+          // Add user to default group if configured
+          if (defaultGroup) {
+            await GroupUser.create(
+              {
+                userId: user.id,
+                groupId: defaultGroup.id,
+                permission: GroupPermission.Member,
+                // No createdById since this is a system action
+              },
+              { transaction }
+            );
+            result.addedToGroup++;
+            Logger.info(
+              "sync",
+              `Added user ${user.id} to group ${defaultGroup.name}`,
+              {
+                email: user.email,
+                groupId: defaultGroup.id,
+              }
+            );
+          }
         });
       }
     } catch (err) {

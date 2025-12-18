@@ -115,6 +115,7 @@ export default class SyncOIDCUsersTask extends CronTask {
           teamId: authProvider.teamId,
           authenticationProviderId: authProvider.id,
           users: syncUsers,
+          defaultGroupName: env.OIDC_SYNC_DEFAULT_GROUP_NAME,
         });
 
         Logger.info("task", `Sync completed for team ${authProvider.teamId}`, {
@@ -123,6 +124,7 @@ export default class SyncOIDCUsersTask extends CronTask {
           suspended: result.suspended,
           reactivated: result.reactivated,
           unchanged: result.unchanged,
+          addedToGroup: result.addedToGroup,
           errors: result.errors.length,
         });
 
