@@ -115,6 +115,8 @@ export default class SyncOIDCUsersTask extends CronTask {
           teamId: authProvider.teamId,
           authenticationProviderId: authProvider.id,
           users: syncUsers,
+          // Use database setting first, env variable as fallback
+          defaultGroupId: authProvider.settings?.syncDefaultGroupId,
           defaultGroupName: env.OIDC_SYNC_DEFAULT_GROUP_NAME,
         });
 

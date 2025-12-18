@@ -7,6 +7,7 @@ import { useTranslation, Trans } from "react-i18next";
 import { toast } from "sonner";
 import { useTheme } from "styled-components";
 import { TeamPreference } from "@shared/types";
+import AuthenticationProvider from "~/models/AuthenticationProvider";
 import ConfirmationDialog from "~/components/ConfirmationDialog";
 import Flex from "~/components/Flex";
 import Heading from "~/components/Heading";
@@ -24,7 +25,7 @@ import DomainManagement from "./components/DomainManagement";
 import SettingRow from "./components/SettingRow";
 
 function Security() {
-  const { authenticationProviders, dialogs } = useStores();
+  const { authenticationProviders, dialogs, groups } = useStores();
   const team = useCurrentTeam();
   const { t } = useTranslation();
   const theme = useTheme();
@@ -43,6 +44,8 @@ function Security() {
     loading,
     request,
   } = useRequest(authenticationProviders.fetchPage);
+
+  const { request: fetchGroups } = useRequest(groups.fetchPage);
 
   const userRoleOptions: Option[] = React.useMemo(
     () =>
@@ -66,6 +69,55 @@ function Security() {
       void request();
     }
   }, [loading, providers, request]);
+
+  React.useEffect(() => {
+    if (!groups.isLoaded) {
+      void fetchGroups();
+    }
+  }, [groups.isLoaded, fetchGroups]);
+
+  // Build group options for the selector, including a "None" option
+  const groupOptions: Option[] = React.useMemo(
+    () => [
+      {
+        type: "item",
+        label: t("None"),
+        value: "",
+      },
+      { type: "separator" },
+      ...groups.orderedData.map((group) => ({
+        type: "item" as const,
+        label: group.name,
+        value: group.id,
+      })),
+    ],
+    [groups.orderedData, t]
+  );
+
+  // Get OIDC provider if available
+  const oidcProvider = React.useMemo(
+    () =>
+      authenticationProviders.orderedData.find(
+        (p) => p.name === "oidc" && p.isConnected
+      ),
+    [authenticationProviders.orderedData]
+  );
+
+  const handleSyncDefaultGroupChange = React.useCallback(
+    async (groupId: string, provider: AuthenticationProvider) => {
+      try {
+        provider.settings = {
+          ...provider.settings,
+          syncDefaultGroupId: groupId || null,
+        };
+        await provider.save();
+        toast.success(t("Settings saved"));
+      } catch (err) {
+        toast.error(err.message);
+      }
+    },
+    [t]
+  );
 
   const showSuccessMessage = React.useMemo(
     () =>
@@ -257,6 +309,37 @@ function Security() {
           disabled={!env.EMAIL_ENABLED}
         />
       </SettingRow>
+
+      {oidcProvider && (
+        <>
+          <h2>{t("User Sync")}</h2>
+          <Text as="p" type="secondary">
+            <Trans>
+              Configure automatic user synchronization from your identity
+              provider.
+            </Trans>
+          </Text>
+          <SettingRow
+            label={t("Default group for new users")}
+            name="syncDefaultGroup"
+            description={t(
+              "Automatically add newly synced users to this group. Only applies to users created during sync."
+            )}
+            border={false}
+          >
+            <InputSelect
+              value={oidcProvider.settings?.syncDefaultGroupId ?? ""}
+              options={groupOptions}
+              onChange={(value) =>
+                handleSyncDefaultGroupChange(value, oidcProvider)
+              }
+              label={t("Default group")}
+              hideLabel
+              short
+            />
+          </SettingRow>
+        </>
+      )}
 
       <h2>{t("Access")}</h2>
       <SettingRow

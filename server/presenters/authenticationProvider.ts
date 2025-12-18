@@ -9,5 +9,6 @@ export default function presentAuthenticationProvider(
     createdAt: authenticationProvider.createdAt,
     isEnabled: authenticationProvider.enabled,
     isConnected: true,
+    settings: authenticationProvider.settings,
   };
 }

@@ -11,7 +11,9 @@ import {
   IsUUID,
   PrimaryKey,
   Scopes,
+  AllowNull,
 } from "sequelize-typescript";
+import { AuthenticationProviderSettings } from "@shared/types";
 import Model from "@server/models/base/Model";
 import { ValidationError } from "../errors";
 import Team from "./Team";
@@ -75,6 +77,10 @@ class AuthenticationProvider extends Model<
 
   @CreatedAt
   createdAt: Date;
+
+  @AllowNull
+  @Column(DataType.JSONB)
+  settings: AuthenticationProviderSettings | null;
 
   // associations
 

@@ -1,4 +1,5 @@
 import { computed, observable } from "mobx";
+import { AuthenticationProviderSettings } from "@shared/types";
 import Model from "./base/Model";
 import Field from "./decorators/Field";
 
@@ -15,6 +16,10 @@ class AuthenticationProvider extends Model {
   @Field
   @observable
   isEnabled: boolean;
+
+  @Field
+  @observable
+  settings: AuthenticationProviderSettings | null;
 
   @computed
   get isActive() {

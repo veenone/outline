@@ -53,7 +53,9 @@ interface Props {
   authenticationProviderId: string;
   /** List of users from the external provider */
   users: SyncUser[];
-  /** Optional: Name of a group to assign newly created users to */
+  /** Optional: ID of a group to assign newly created users to */
+  defaultGroupId?: string | null;
+  /** Optional: Name of a group to assign newly created users to (fallback if ID not provided) */
   defaultGroupName?: string;
 }
 
@@ -70,7 +72,13 @@ interface Props {
  */
 export default async function userSyncer(
   ctx: APIContext,
-  { teamId, authenticationProviderId, users, defaultGroupName }: Props
+  {
+    teamId,
+    authenticationProviderId,
+    users,
+    defaultGroupId,
+    defaultGroupName,
+  }: Props
 ): Promise<UserSyncerResult> {
   const result: UserSyncerResult = {
     created: 0,
@@ -117,9 +125,23 @@ export default async function userSyncer(
     return result;
   }
 
-  // Look up default group if specified
+  // Look up default group if specified (by ID first, then by name as fallback)
   let defaultGroup: Group | null = null;
-  if (defaultGroupName) {
+  if (defaultGroupId) {
+    defaultGroup = await Group.findOne({
+      where: {
+        id: defaultGroupId,
+        teamId,
+      },
+    });
+    if (!defaultGroup) {
+      Logger.warn(
+        "sync",
+        `Default group with ID "${defaultGroupId}" not found, users will not be auto-assigned`,
+        { teamId }
+      );
+    }
+  } else if (defaultGroupName) {
     defaultGroup = await Group.findOne({
       where: {
         teamId,
@@ -132,16 +154,18 @@ export default async function userSyncer(
         `Default group "${defaultGroupName}" not found, users will not be auto-assigned`,
         { teamId }
       );
-    } else {
-      Logger.info(
-        "sync",
-        `Will assign new users to group "${defaultGroupName}"`,
-        {
-          teamId,
-          groupId: defaultGroup.id,
-        }
-      );
     }
+  }
+
+  if (defaultGroup) {
+    Logger.info(
+      "sync",
+      `Will assign new users to group "${defaultGroup.name}"`,
+      {
+        teamId,
+        groupId: defaultGroup.id,
+      }
+    );
   }
 
   // Build a map of provider users by providerId for quick lookup

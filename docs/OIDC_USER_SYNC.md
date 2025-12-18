@@ -74,14 +74,22 @@ OIDC_SYNC_REALM=myrealm
 OIDC_SYNC_CLIENT_ID=outline-sync
 OIDC_SYNC_CLIENT_SECRET=your-admin-client-secret
 
-# Auto-assign newly synced users to a specific group
+# Auto-assign newly synced users to a specific group (fallback if not configured in UI)
 # The group must already exist in Outline
 OIDC_SYNC_DEFAULT_GROUP_NAME=New Users
 ```
 
 If `OIDC_SYNC_CLIENT_ID` is not set, Outline will use the main `OIDC_CLIENT_ID` and `OIDC_CLIENT_SECRET` for admin API access.
 
-If `OIDC_SYNC_DEFAULT_GROUP_NAME` is set, newly created users will automatically be added to the specified group. This only applies to users that do not already exist in Outline. The group must be created beforehand in Outline.
+### Default Group Configuration
+
+You can configure which group newly synced users are automatically added to in two ways:
+
+1. **Admin UI (Recommended)**: Go to **Settings > Security > User Sync** and select a group from the dropdown. This setting is stored in the database and takes precedence over the environment variable.
+
+2. **Environment Variable (Fallback)**: Set `OIDC_SYNC_DEFAULT_GROUP_NAME` to the name of the group. This is used only if no group is configured in the UI.
+
+Only users created during sync are added to the default group. Existing users are not affected.
 
 ## Complete Example
 

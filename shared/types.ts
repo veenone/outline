@@ -395,6 +395,14 @@ export type NotificationSettings = {
     | boolean;
 };
 
+/**
+ * Settings for an authentication provider, stored per-provider.
+ */
+export type AuthenticationProviderSettings = {
+  /** Group ID to automatically assign newly synced users to */
+  syncDefaultGroupId?: string | null;
+};
+
 export const NotificationEventDefaults: Record<NotificationEventType, boolean> =
   {
     [NotificationEventType.PublishDocument]: false,
